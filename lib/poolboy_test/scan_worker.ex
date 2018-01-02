@@ -14,11 +14,8 @@ defmodule PoolboyTest.ScanWorker do
   # server
 
   def handle_cast({:perform, path, recipient}, _) do
-    IO.puts "1"
     results = Path.wildcard("#{path}/**/*")
-    IO.puts "2"
     send recipient, {:pass_results, results}
-    IO.puts "3"
     {:noreply, nil}
   end
 end

@@ -19,7 +19,6 @@ defmodule PoolboyTest.Worker do
 
   def handle_call({:size, path}, _from, state) do
     result = PoolboyTest.Sizer.size(path)
-    IO.puts "Size of '#{path}' is #{result}"
     {:reply, [result], state}
   end
 end

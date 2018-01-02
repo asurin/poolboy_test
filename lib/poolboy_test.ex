@@ -1,15 +1,18 @@
 defmodule PoolboyTest do
   use Application
 
+  alias PoolboyTest.Scanner
+
   def start(_type, _args) do
     poolboy_config = [
       {:name, {:local, pool_name()}},
       {:worker_module, PoolboyTest.Worker},
-      {:size, 2},
-      {:max_overflow, 1}
+      {:size, 4},
+      {:max_overflow, 2}
     ]
 
     children = [
+      PoolboyTest.Scanner,
       :poolboy.child_spec(pool_name(), poolboy_config, [])
     ]
 
@@ -21,22 +24,41 @@ defmodule PoolboyTest do
     Supervisor.start_link(children, options)
   end
 
-  def basic_pool(path) do
-    pool_square(path)
-  end
-
-  def parallel_pool(paths) do
+  def sizes(path) do
+    {:results, paths} = paths(path)
     Enum.each(
       paths,
-      fn(path) -> spawn( fn() -> pool_square(path) end ) end
+      fn(path) -> spawn( fn() -> size(path) end ) end
     )
   end
 
-  def paths() do
-    Path.wildcard("#{File.cwd!()}/**/*")
+  def simple_sizes(path) do
+    {:results, paths} = paths(path)
+    {:ok, worker} = PoolboyTest.Worker.start_link([])
+    Enum.each(
+      paths,
+      fn(path) -> PoolboyTest.Worker.size(worker, path) end
+    )
   end
 
-  defp pool_square(path) do
+  def paths(path) do
+    Scanner.scan(path)
+    {:ok, paths} = wait_for_results(nil, 0)
+    paths
+  end
+
+  defp wait_for_results({:state, :done}, _) do
+    {:ok, Scanner.results()}
+  end
+  defp wait_for_results(_, 60) do
+    {:timeout}
+  end
+  defp wait_for_results(state, iteration) do
+    :timer.sleep(1000)
+    wait_for_results(Scanner.state(), iteration + 1)
+  end
+
+  defp size(path) do
     :poolboy.transaction(
       pool_name(),
       fn(pid) -> PoolboyTest.Worker.size(pid, path) end,

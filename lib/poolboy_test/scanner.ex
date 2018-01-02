@@ -42,14 +42,12 @@ defmodule PoolboyTest.Scanner do
   def handle_call({:results}, _from, %{state: :done, results: results}) do
     {:reply, {:results, results}, %{state: :idle}}
   end
-  def handle_call({:results}, _from, _state) do
-    {:reply, {:no_results}, state}
+  def handle_call({:results}, _from, state) do
+    {:reply, {:invalid_state, state.state}, state}
   end
 
   def handle_info({:pass_results, results}, %{state: :scanning, monitor: ref}) do
-    IO.puts "4"
     Process.demonitor(ref)
-    IO.puts "5"
     {:noreply, %{state: :done, results: results}}
   end
   def handle_info({:DOWN, _ref, :process, _object, _reason}, %{state: :scanning}) do
@@ -59,7 +57,7 @@ defmodule PoolboyTest.Scanner do
   defp scan_worker(path) do
     {:ok, scanner} = PoolboyTest.ScanWorker.start_link([])
     ref = Process.monitor(scanner)
-    PoolboyTest.ScanWorker.perform(scanner, "/home/asurin/Development", self())
+    PoolboyTest.ScanWorker.perform(scanner, path, self())
     ref
   end
 end
